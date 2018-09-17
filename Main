@@ -1,0 +1,82 @@
+while(video.isOpened()):
+    
+    ret, frame = video.read()
+ 
+#    print(frame_number)
+    blur_frame=cv2.blur(frame,(4,4))
+    masked_frame=backVideo.apply(blur_frame)
+    
+    
+    erode(masked_frame,dilation_structure,masked_frame)
+    dilate(masked_frame,dilation_structure,masked_frame)
+    erode(masked_frame,dilation_structure,masked_frame)
+    dilate(masked_frame,dilation_structure,masked_frame)
+    erode(masked_frame,dilation_structure,masked_frame)
+    line_y = 400
+    im,contours,hiearchy=cv2.findContours(masked_frame,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+   
+#    cv2.drawContours(frame, contours, -1, (0,255,0), 3)
+    for cont in contours : 
+        if cv2.contourArea(cont) > 2000 :
+            (x_min,x_max,y_min,y_max)=fixedContours(cont)
+            
+            cv2.rectangle(frame,(x_min,y_max),(x_max,y_min),(0,0,255),2)
+
+            x_center, y_center=findCenter(x_min,x_max,y_min,y_max)
+            index = isSameBlob(x_center,y_center,veh)
+            
+            if(index != -1):
+                if(veh[index].direction and y_center > line_y ):
+                    veh[index].x = x_center
+                    veh[index].y = y_center
+                    veh[index].frameNumber = frame_number
+                    cv2.line(frame,(x_center, y_center),(x_center+5, y_center+5),(255,255,0),2)
+                    cv2.rectangle(frame,(x_min,y_max),(x_max,y_min),(0,255,0),2)
+                    printVehNumber(frame,veh[index].id,veh[index].x,veh[index].y)
+                    
+                    
+                elif(y_center > line_y and veh[index].y > y_center):
+                    veh[index].direction = True
+                    veh[index].x = x_center
+                    veh[index].y = y_center
+                    veh[index].id = counter
+                    veh[index].frameNumber = frame_number
+                    cv2.rectangle(frame,(x_min,y_max),(x_max,y_min),(0,255,0),2)
+                    counter = counter + 1
+                    printVehNumber(frame,veh[index].id,veh[index].x,veh[index].y)
+                else:
+                    if(veh[index].direction):
+                        passedVehicles = passedVehicles + 1
+                        print(passedVehicles)
+                        cv2.rectangle(frame,(x_min,y_max),(x_max,y_min),(0,0,0),2)
+                    veh.remove(veh[index])
+                    #erease from veh
+                    
+            else:
+                vehicle = Vehicle(x_center,y_center,frame_number)
+                veh.append(vehicle)
+            i = 0
+            while( i  < (len(veh))):
+                if(veh[i].frameNumber < frame_number -2):
+                    veh.remove(veh[i])
+                    i = i-1
+                i=i+1
+            
+            
+            veh.append(Vehicle(x_center,y_center,frame_number))
+
+    printPassedNumber(frame,passedVehicles)
+    
+    cv2.line(frame,(0,line_y),(width,line_y),(0,0,255),2)
+
+    findDensity(frame,veh,band)
+    cv2.imshow('frame', frame)
+    k=cv2.waitKey(33) & 0xfff
+    if k==27 :
+        break
+    frame_number=frame_number+1
+
+    
+
+cv2.destroyAllWindows() 
+video.release()
